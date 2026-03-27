@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Name Review</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#101010;--surface:#1a1a1a;--surface2:#222;--border:#2a2a2a;
+  --text1:#e8e4df;--text2:#8a8580;--text3:#5a5550;
+  --amber:#e8a84c;--amber-dim:rgba(232,168,76,0.15);--amber-glow:rgba(232,168,76,0.3);
+  --keep:#4ade80;--keep-dim:rgba(74,222,128,0.12);--keep-glow:rgba(74,222,128,0.25);
+  --nope:#ef4444;--nope-dim:rgba(239,68,68,0.12);--nope-glow:rgba(239,68,68,0.25);
+  --star:#fbbf24;--star-dim:rgba(251,191,36,0.15);
+}
+html{height:100%;overflow:hidden;position:fixed;width:100%}
+body{height:100%;overflow:hidden;position:fixed;width:100%;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--text1);
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  overscroll-behavior:none;
+  -webkit-overflow-scrolling:touch;
+}
+
+.app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+/* === HEADER === */
+.header{padding:1.2rem 1.2rem 0.6rem;text-align:center;flex-shrink:0}
+.header h1{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);font-weight:400}
+.header .counter{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;font-size:0.7rem;color:var(--text2);margin-top:0.3rem}
+.header .counter span{color:var(--amber)}
+
+/* === PROGRESS === */
+.progress{padding:0 1.2rem;flex-shrink:0;margin-bottom:0.5rem}
+.progress-track{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;display:flex}
+.progress-keep{height:100%;background:var(--keep);transition:width 0.4s ease}
+.progress-nope{height:100%;background:var(--nope);opacity:0.4;transition:width 0.4s ease}
+
+/* === CARD STACK === */
+.stack{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:1rem;touch-action:none}
+
+.card{position:absolute;width:85%;max-width:360px;min-height:200px;
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:2rem 1.5rem;
+  touch-action:none;
+  -webkit-touch-callout:none;
+  box-shadow:0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.03)}
+.card.animating{transition:transform 0.35s cubic-bezier(0.4,0,0.2,1),opacity 0.35s ease;pointer-events:none}
+
+.card .name{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;font-size:1.5rem;font-weight:700;color:var(--text1);text-align:center;line-height:1.3;letter-spacing:-0.01em;padding:0 0.5rem}
+
+/* Swipe indicators */
+.card .indicator{position:absolute;top:1.2rem;padding:0.3rem 1rem;border-radius:6px;font-family:'Space Mono',ui-monospace,monospace;font-size:0.75rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;opacity:0;pointer-events:none}
+.card .ind-keep{right:1.2rem;color:var(--keep);border:2px solid var(--keep);transform:rotate(12deg)}
+.card .ind-nope{left:1.2rem;color:var(--nope);border:2px solid var(--nope);transform:rotate(-12deg)}
+
+/* Star button on card */
+.card .star-btn{position:absolute;bottom:1.2rem;width:52px;height:52px;border-radius:50%;border:2px solid var(--border);background:transparent;color:var(--text3);font-size:1.4rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;z-index:10;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.card .star-btn:active{transform:scale(0.9)}
+.card .star-btn.starred{border-color:var(--star);color:var(--star);background:var(--star-dim);transform:scale(1.1)}
+
+/* Card depth */
+.card.c1{z-index:3}
+.card.c2{z-index:2;transform:scale(0.94) translateY(10px);opacity:0.5;pointer-events:none}
+.card.c3{z-index:1;transform:scale(0.88) translateY(20px);opacity:0.25;pointer-events:none}
+
+/* Swiping glow */
+.card.swiping-right{box-shadow:0 4px 24px rgba(0,0,0,0.4),0 0 40px var(--keep-glow);border-color:rgba(74,222,128,0.3)}
+.card.swiping-left{box-shadow:0 4px 24px rgba(0,0,0,0.4),0 0 40px var(--nope-glow);border-color:rgba(239,68,68,0.3)}
+
+/* === CONTROLS === */
+.controls{display:flex;align-items:center;justify-content:center;gap:1.2rem;padding:0.8rem 1.2rem 1.2rem;flex-shrink:0}
+
+.ctrl-btn{width:56px;height:56px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:1.3rem;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all 0.15s}
+.ctrl-btn:active{transform:scale(0.9)}
+.ctrl-btn.btn-nope{color:var(--nope);border-color:rgba(239,68,68,0.3)}
+.ctrl-btn.btn-keep{color:var(--keep);border-color:rgba(74,222,128,0.3)}
+.ctrl-btn.btn-star{color:var(--star);border-color:rgba(251,191,36,0.3);width:48px;height:48px;font-size:1.1rem}
+.ctrl-btn.btn-undo{color:var(--text3);width:40px;height:40px;font-size:0.9rem}
+.ctrl-btn:disabled{opacity:0.2;transform:none}
+
+/* === COMPLETION === */
+.completion{display:none;flex:1;flex-direction:column;padding:1.5rem;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.completion.show{display:flex}
+.completion h2{font-family:'Space Mono',ui-monospace,monospace;font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);text-align:center;margin-bottom:1.5rem}
+.completion .stats{display:flex;justify-content:center;gap:2rem;margin-bottom:2rem}
+.completion .stat{text-align:center}
+.completion .stat-num{font-family:'Space Mono',ui-monospace,monospace;font-size:2rem;font-weight:700}
+.completion .stat-num.kept{color:var(--keep)}
+.completion .stat-num.starred{color:var(--star)}
+.completion .stat-num.noped{color:var(--nope)}
+.completion .stat-label{font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem}
+
+.completion .result-list{flex:1;margin-bottom:1rem}
+.completion .result-item{padding:0.6rem 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.6rem;font-family:'Space Mono',ui-monospace,monospace;font-size:0.85rem}
+.completion .result-item .star-icon{color:var(--star);font-size:1rem}
+.completion .result-item.is-starred{color:var(--star)}
+
+.completion .actions{display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center;padding-bottom:1rem}
+.completion .action-btn{padding:0.7rem 1.2rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:0.85rem;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all 0.15s}
+.completion .action-btn:active{opacity:0.7}
+.completion .action-btn.primary{background:var(--amber);color:#000;border-color:var(--amber);font-weight:600}
+
+/* === TOAST === */
+.toast{position:fixed;bottom:6rem;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface2);border:1px solid var(--border);color:var(--text1);padding:0.5rem 1.2rem;border-radius:10px;font-family:'Space Mono',ui-monospace,monospace;font-size:0.75rem;opacity:0;transition:all 0.3s;pointer-events:none;z-index:600}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* === INTRO === */
+.intro{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center}
+.intro h2{font-family:'Space Mono',ui-monospace,monospace;font-size:1.1rem;color:var(--text1);margin-bottom:1rem}
+.intro p{color:var(--text2);font-size:0.9rem;line-height:1.6;max-width:300px;margin-bottom:0.5rem}
+.intro .hint{font-family:'Space Mono',ui-monospace,monospace;font-size:0.7rem;color:var(--text3);margin-top:1.5rem;line-height:1.8}
+.intro .start-btn{margin-top:2rem;padding:0.9rem 2.5rem;border-radius:12px;border:none;background:var(--amber);color:#000;font-family:'Space Mono',ui-monospace,monospace;font-size:0.85rem;font-weight:700;letter-spacing:0.05em;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.intro .start-btn:active{opacity:0.8}
+
+@media(min-width:481px){.card .name{font-size:2rem}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Name Review</h1>
+    <div class="counter" id="counter"></div>
+  </div>
+  <div class="progress"><div class="progress-track"><div class="progress-keep" id="progKeep"></div><div class="progress-nope" id="progNope"></div></div></div>
+
+  <!-- Intro -->
+  <div class="intro" id="introScreen">
+    <h2>Help pick a name</h2>
+    <p>You'll see 43 name candidates for an engineering consultancy. No need to overthink it.</p>
+    <p>Imagine someone says "I work at <em>____</em>." Does it sound interesting?</p>
+    <div class="hint">
+      Swipe right or tap ✓ → Keep<br>
+      Swipe left or tap ✗ → Nope<br>
+      Tap ★ → You love this one
+    </div>
+    <button class="start-btn" id="startBtn">Let's go</button>
+  </div>
+
+  <!-- Card stack -->
+  <div class="stack" id="stack" style="display:none"></div>
+
+  <!-- Completion -->
+  <div class="completion" id="doneScreen">
+    <h2>All done — thank you!</h2>
+    <div class="stats">
+      <div class="stat"><div class="stat-num starred" id="dStar">0</div><div class="stat-label">Starred</div></div>
+      <div class="stat"><div class="stat-num kept" id="dKept">0</div><div class="stat-label">Kept</div></div>
+      <div class="stat"><div class="stat-num noped" id="dNope">0</div><div class="stat-label">Noped</div></div>
+    </div>
+    <div class="result-list" id="resultList"></div>
+    <div class="actions">
+      <button class="action-btn primary" id="saveBtn">Save Results</button>
+      <button class="action-btn" id="restartBtn">Start Over</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" id="controls" style="display:none">
+    <button class="ctrl-btn btn-undo" id="undoBtn" disabled title="Undo">↩</button>
+    <button class="ctrl-btn btn-nope" id="nopeBtn" title="Nope">✗</button>
+    <button class="ctrl-btn btn-star" id="starBtn" title="Love it!">★</button>
+    <button class="ctrl-btn btn-keep" id="keepBtn" title="Keep">✓</button>
+  </div>
+</div>
+<noscript><div style="padding:2rem;text-align:center;color:#e8e4df;font-family:sans-serif;background:#101010;min-height:100vh;display:flex;align-items:center;justify-content:center"><p>JavaScript is required. If you're viewing this in the Dropbox app, tap the three dots (⋯) menu and choose "Open in Safari" or "Open in Browser".</p></div></noscript>
+<div class="toast" id="toast"></div>
+<div id="errorMsg" style="display:none;padding:2rem;text-align:center;color:#ef4444;font-family:sans-serif;position:fixed;inset:0;background:#101010;z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column"><p style="font-size:1.1rem;margin-bottom:1rem">Something went wrong</p><p style="color:#8a8580;font-size:0.85rem">Try opening this file in Safari directly instead of the Dropbox app viewer.</p></div>
+
+<script>
+window.onerror=function(msg,url,line){
+  var el=document.getElementById('errorMsg');
+  if(el){el.style.display='flex'}
+  return false;
+};
+</script>
+<script>
+(function(){
+'use strict';
+
+var ALL_NAMES=["Backscatter","Bent Pin","Blatant","Bold Wire","Bounded","Breakover","Breakpoint","Breakwire","Burn-In","Burnwire","Cold Solder","Crosstalk","Debounce","Drift Margin","Drop Test","Failsafe","First Principles","Flyback","Hackberry","Hangfire","Haywire","Noise Floor","Overbuilt","Overspec","Overwind","Phase Lock","Reflow","Ringdown","Ripstop","Root Cause","Scratchbuilt","Stray Signal","Stray Voltage","Switchback","Third Rail","Trial by Wire","Undaunted Forge","Undaunted Labs","Ungrounded","Unmasked","Unscoped","Unswitched","Untraced"];
+var TOTAL=ALL_NAMES.length;
+
+var deck=[];
+var idx=0;
+var kept=[];
+var starred={};
+var noped=[];
+var undoStack=[];
+
+var stackEl=document.getElementById('stack');
+var controlsEl=document.getElementById('controls');
+var introScreen=document.getElementById('introScreen');
+var doneScreen=document.getElementById('doneScreen');
+var toastEl=document.getElementById('toast');
+var undoBtn=document.getElementById('undoBtn');
+
+function shuffle(a){
+  var arr=a.slice();
+  for(var i=arr.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var tmp=arr[i];arr[i]=arr[j];arr[j]=tmp;
+  }
+  return arr;
+}
+
+function init(){
+  deck=shuffle(ALL_NAMES);
+  idx=0;kept=[];starred={};noped=[];undoStack=[];
+  doneScreen.classList.remove('show');
+  introScreen.style.display='flex';
+  stackEl.style.display='none';
+  controlsEl.style.display='none';
+  updateProgress();
+}
+
+document.getElementById('startBtn').addEventListener('click',function(){
+  introScreen.style.display='none';
+  stackEl.style.display='flex';
+  controlsEl.style.display='flex';
+  renderCards();
+});
+
+function updateProgress(){
+  var done=kept.length+noped.length;
+  document.getElementById('counter').innerHTML='<span>'+done+'</span> / '+TOTAL;
+  document.getElementById('progKeep').style.width=(kept.length/TOTAL*100)+'%';
+  document.getElementById('progNope').style.width=(noped.length/TOTAL*100)+'%';
+  undoBtn.disabled=undoStack.length===0;
+}
+
+function renderCards(){
+  stackEl.innerHTML='';
+  var remaining=deck.length-idx;
+  if(remaining<=0){showDone();return}
+  var count=Math.min(3,remaining);
+  for(var i=count-1;i>=0;i--){
+    var ci=idx+i;
+    if(ci>=deck.length)continue;
+    var name=deck[ci];
+    var card=document.createElement('div');
+    card.className='card c'+(i+1);
+    card.setAttribute('data-name',name);
+    var isStarred=starred[name]===true;
+    card.innerHTML='<div class="indicator ind-keep">KEEP</div><div class="indicator ind-nope">NOPE</div><div class="name">'+name+'</div><button class="star-btn'+(isStarred?' starred':'')+'">'+(isStarred?'★':'☆')+'</button>';
+    if(i===0)setupSwipe(card);
+    (function(n,c){
+      c.querySelector('.star-btn').addEventListener('touchend',function(e){
+        e.preventDefault();e.stopPropagation();
+        toggleStar(n,c.querySelector('.star-btn'));
+      });
+      c.querySelector('.star-btn').addEventListener('click',function(e){
+        e.preventDefault();e.stopPropagation();
+        toggleStar(n,c.querySelector('.star-btn'));
+      });
+    })(name,card);
+    stackEl.appendChild(card);
+  }
+}
+
+function toggleStar(name,btn){
+  if(starred[name]){
+    delete starred[name];btn.classList.remove('starred');btn.textContent='☆';showToast('Unstarred');
+  }else{
+    starred[name]=true;btn.classList.add('starred');btn.textContent='★';showToast('★ Starred!');
+  }
+}
+
+function setupSwipe(card){
+  var startX=0,startY=0,currentX=0,isDragging=false,isScrolling=false;
+  var THRESHOLD=80;
+
+  function getX(e){
+    if(e.touches&&e.touches.length>0)return e.touches[0].clientX;
+    if(e.changedTouches&&e.changedTouches.length>0)return e.changedTouches[0].clientX;
+    return e.clientX||0;
+  }
+  function getY(e){
+    if(e.touches&&e.touches.length>0)return e.touches[0].clientY;
+    if(e.changedTouches&&e.changedTouches.length>0)return e.changedTouches[0].clientY;
+    return e.clientY||0;
+  }
+
+  function onStart(e){
+    if(e.target.closest&&e.target.closest('.star-btn'))return;
+    isDragging=true;isScrolling=false;
+    startX=getX(e);startY=getY(e);currentX=0;
+    card.style.transition='none';
+    card.style.willChange='transform';
+  }
+  function onMove(e){
+    if(!isDragging)return;
+    var x=getX(e)-startX;
+    var y=getY(e)-startY;
+    // Lock to horizontal if moved enough
+    if(!isScrolling&&Math.abs(y)>Math.abs(x)&&Math.abs(y)>10){isScrolling=true;isDragging=false;return}
+    if(Math.abs(x)>5)e.preventDefault();
+    currentX=x;
+    var rot=(x/window.innerWidth)*15;
+    card.style.transform='translateX('+x+'px) rotate('+rot+'deg)';
+    var keepInd=card.querySelector('.ind-keep');
+    var nopeInd=card.querySelector('.ind-nope');
+    if(x>25){keepInd.style.opacity=Math.min(1,(x-25)/55);nopeInd.style.opacity=0;card.classList.add('swiping-right');card.classList.remove('swiping-left')}
+    else if(x<-25){nopeInd.style.opacity=Math.min(1,(-x-25)/55);keepInd.style.opacity=0;card.classList.add('swiping-left');card.classList.remove('swiping-right')}
+    else{keepInd.style.opacity=0;nopeInd.style.opacity=0;card.classList.remove('swiping-right','swiping-left')}
+  }
+  function onEnd(e){
+    if(!isDragging){isDragging=false;return}
+    isDragging=false;
+    card.style.willChange='';
+    card.classList.remove('swiping-right','swiping-left');
+    if(currentX>THRESHOLD){flyOff(card,'right');doAction('keep',card.getAttribute('data-name'))}
+    else if(currentX<-THRESHOLD){flyOff(card,'left');doAction('nope',card.getAttribute('data-name'))}
+    else{
+      card.style.transition='transform 0.3s ease';card.style.transform='';
+      var inds=card.querySelectorAll('.indicator');for(var i=0;i<inds.length;i++)inds[i].style.opacity=0;
+    }
+    currentX=0;
+  }
+
+  // Touch events (primary on iOS)
+  card.addEventListener('touchstart',onStart,{passive:true});
+  card.addEventListener('touchmove',onMove,{passive:false});
+  card.addEventListener('touchend',onEnd,{passive:true});
+  // Mouse fallback for desktop
+  card.addEventListener('mousedown',onStart);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+  card._cleanup=function(){
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+  };
+}
+
+function flyOff(card,dir){
+  if(card._cleanup)card._cleanup();
+  card.classList.add('animating');
+  var x=dir==='right'?window.innerWidth:-window.innerWidth;
+  var rot=dir==='right'?25:-25;
+  card.style.transform='translateX('+x+'px) rotate('+rot+'deg)';
+  card.style.opacity='0';
+  setTimeout(function(){renderCards()},300);
+}
+
+function doAction(action,name){
+  if(action==='keep'){kept.push(name)}else{noped.push(name)}
+  undoStack.push({action:action,name:name,wasStarred:starred[name]===true});
+  idx++;updateProgress();
+}
+
+// Button controls
+document.getElementById('keepBtn').addEventListener('click',function(){
+  var card=stackEl.querySelector('.c1');if(!card)return;
+  flyOff(card,'right');doAction('keep',card.getAttribute('data-name'));
+});
+document.getElementById('nopeBtn').addEventListener('click',function(){
+  var card=stackEl.querySelector('.c1');if(!card)return;
+  flyOff(card,'left');doAction('nope',card.getAttribute('data-name'));
+});
+document.getElementById('starBtn').addEventListener('click',function(){
+  var card=stackEl.querySelector('.c1');if(!card)return;
+  var name=card.getAttribute('data-name');
+  if(!starred[name]){
+    starred[name]=true;
+    var btn=card.querySelector('.star-btn');
+    if(btn){btn.classList.add('starred');btn.textContent='★'}
+    showToast('★ Starred!');
+  }
+  flyOff(card,'right');doAction('keep',name);
+});
+
+// Undo
+undoBtn.addEventListener('click',function(){
+  if(undoStack.length===0)return;
+  var last=undoStack.pop();
+  if(last.action==='keep'){
+    var ki=kept.lastIndexOf(last.name);if(ki>-1)kept.splice(ki,1);
+  }else{
+    var ni=noped.lastIndexOf(last.name);if(ni>-1)noped.splice(ni,1);
+  }
+  if(!last.wasStarred)delete starred[last.name];
+  idx=Math.max(0,idx-1);
+  deck[idx]=last.name;
+  updateProgress();renderCards();showToast('Undone');
+});
+
+// Done screen
+function showDone(){
+  stackEl.style.display='none';controlsEl.style.display='none';
+  doneScreen.classList.add('show');
+  document.getElementById('dStar').textContent=Object.keys(starred).length;
+  document.getElementById('dKept').textContent=kept.length;
+  document.getElementById('dNope').textContent=noped.length;
+  var list=document.getElementById('resultList');
+  list.innerHTML='';
+  var starredKept=kept.filter(function(n){return starred[n]});
+  var justKept=kept.filter(function(n){return !starred[n]});
+  var all=starredKept.concat(justKept);
+  for(var i=0;i<all.length;i++){
+    var name=all[i];
+    var div=document.createElement('div');
+    div.className='result-item'+(starred[name]?' is-starred':'');
+    div.innerHTML=(starred[name]?'<span class="star-icon">★</span>':'<span style="width:1rem;display:inline-block"></span>')+' '+name;
+    list.appendChild(div);
+  }
+}
+
+// Save
+document.getElementById('saveBtn').addEventListener('click',function(){
+  var starredList=Object.keys(starred).sort();
+  var keptList=kept.filter(function(n){return !starred[n]}).sort();
+  var data={starred:starredList,kept:keptList,rejected:noped.slice().sort(),timestamp:new Date().toISOString()};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='name-feedback.json';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('Saved!');
+});
+
+// Restart
+document.getElementById('restartBtn').addEventListener('click',function(){init()});
+
+// Toast
+var toastTimer;
+function showToast(msg){
+  toastEl.textContent=msg;toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){toastEl.classList.remove('show')},1500);
+}
+
+// Prevent iOS bounce/scroll on the body
+document.body.addEventListener('touchmove',function(e){
+  if(!e.target.closest('.completion'))e.preventDefault();
+},{passive:false});
+
+// Init
+init();
+})();
+</script>
+</body>
+</html>
